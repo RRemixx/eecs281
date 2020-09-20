@@ -123,141 +123,7 @@ class letterman{
             return true;
         }
 
-        bool change_word(word &checking_word,int index,int length){
-            string diff="";
-            string dicword=checking_word.name;
-            string cur_word=dic[cur_index].name;
-            bool changed=false;
-            for(int i=0;i<(int)length;i++){
-                if(changed&&(dicword[i]!=cur_word[i])){
-                    changed=false;
-                    break;
-                }
-                if((!changed)&&(dicword[i]!=cur_word[i])){
-                    changed=true;
-                    if(!is_wordformat){
-                        ostringstream diff_oss;
-                        diff_oss<<"c,"<<i<<","<<dicword[i];
-                        diff=diff_oss.str();
-                    } 
-                }
-            }
-            if(changed){
-                checking_word.discovered=true;
-                checking_word.diff=diff;
-                checking_word.prev=cur_index;
-                searcher.push_back(index);
-            }
-            return changed;
-        }
-
-        bool swap_word(word &checking_word,int index,int length){
-            string diff="";
-            string dicword=checking_word.name;
-            string cur_word=dic[cur_index].name;
-            bool changed=false;
-            for(int i=0;i<(int)length;i++){
-                if(dicword[i]!=cur_word[i]){
-                    if(changed){ //after the first difference, no difference allowed
-                        changed=false;
-                        break;
-                    }
-                    if(dicword[i+1]==cur_word[i]&&dicword[i]==cur_word[i+1]){
-                        changed=true;
-                        if(is_wordformat){
-                            ostringstream diff_oss;
-                            diff_oss<<"s,"<<i;
-                            diff=diff_oss.str();
-                        }
-                        i++;
-                    }
-                }
-            }
-            if(changed){
-                checking_word.discovered=true;
-                checking_word.diff=diff;
-                checking_word.prev=cur_index;
-                searcher.push_back(index);
-            }
-            return changed;
-        }
-
-
-    bool delete_word(word &checking_word,int index,int length){
-        string diff="";
-        string dicword=checking_word.name;
-        string cur_word=dic[cur_index].name;
-        bool changed=false;
-        //delete from cur_word
-        for(int i=0;i<=length+1;i++){
-            //last char is deleted
-            if(!changed){
-                if(i==length+1){
-                    if(is_wordformat){
-                        ostringstream diff_oss;
-                        diff_oss<<"d,"<<i;
-                        diff=diff_oss.str();
-                    }
-                    break;
-                }
-                if(dicword[i]!=cur_word[i]){
-                    changed=true;
-                    if(is_wordformat){
-                        ostringstream diff_oss;
-                        diff_oss<<"d,"<<i;
-                        diff=diff_oss.str();
-                    }
-                }
-            }
-            else{
-                if(dicword[i-1]!=cur_word[i]){
-                    return false;
-                }
-            }
-        }
-        checking_word.discovered=true;
-        checking_word.diff=diff;
-        checking_word.prev=cur_index;
-        searcher.push_back(index);
-        return true;
-    }
-
-    bool insert_word(word &checking_word,int index,int length){
-        string diff="";
-        string dicword=checking_word.name;
-        string cur_word=dic[cur_index].name;
-        bool changed=false;
-        for(int i=0;i<=length;i++){
-            if(!changed){
-                if(i==length){
-                    if(!is_wordformat){
-                        ostringstream diff_oss;
-                        diff_oss<<"i,"<<i<<","<<dicword[i];
-                        diff=diff_oss.str();
-                    }  
-                    break;
-                }
-                if(dicword[i]!=cur_word[i]){
-                    changed=true;
-                    if(!is_wordformat){
-                        ostringstream diff_oss;
-                        diff_oss<<"i,"<<i<<","<<dicword[i];
-                        diff=diff_oss.str();
-                    }  
-                }
-            }
-            else{
-                if(dicword[i]!=cur_word[i-1]){
-                    return false;
-                }
-            }
-        }
-        checking_word.discovered=true;
-        checking_word.diff=diff;
-        checking_word.prev=cur_index;
-        searcher.push_back(index);
-        return true;
-    }
+        
 
     public:
 
@@ -272,7 +138,6 @@ class letterman{
         void getDic();
 
         bool check_word(int index);   //if endword is added, returns true.
-        bool check_words(int index);   //new check_word
 
         int update_searcher();    //if endword is added, returns 1. if searcher is empty, returns 0. otherwise returns 2.
 
@@ -410,6 +275,7 @@ void letterman::getDic(){
             }
         }
     }
+    dic_size=0;
     for(int i=0;i<num_words;i++){
         if(dic_size==-2){
             break;
@@ -418,7 +284,7 @@ void letterman::getDic(){
             dic[i].discovered=true;
             dic[i].diff=beginword;
             cur_index=i;
-            dic_size=-1;
+            dic_size--;
         }
         if(dic[i].name==endword){
             dic_size--;
@@ -430,47 +296,17 @@ void letterman::getDic(){
     }
 }
 
-
-bool letterman::check_words(int index){
-    if(dic[index].discovered){return false;}
-    else{
-        word checking_word=dic[index];
-        int length=(int)checking_word.name.length();
-        int cur_length=(int)dic[cur_index].name.length();
-        bool is_end=(endword==checking_word.name);
-        if(length==cur_length){
-            if(is_change&&change_word(checking_word,index,length)){
-                return is_end;
-            }
-            if(is_swap&&swap_word(checking_word,index,length)){
-                return is_end;
-            }
-        }
-        else{
-            if(is_length){
-                if(length==cur_length+1&&insert_word(checking_word,index,length)){
-                    return is_end;
-                }
-                if(length==cur_length-1&&insert_word(checking_word,index,length)){
-                    return is_end;
-                }
-            }
-            
-        }
-    }
-    return false;
-}
-
-
 bool letterman::check_word(int index){
     if(dic[index].discovered){return false;}
     else{
         ostringstream diff_oss;
-        bool changed=false;  //whether changed once already
-        string dicword=dic[index].name;
+        word &checking_word=dic[index];
+        string dicword=checking_word.name;
         string cur_word=dic[cur_index].name;
+        cout<<"Begin:dicword: "<<dicword<<" curword: "<<cur_word<<endl;
         string diff_str;     //difference with current word
         size_t length=dicword.length();
+        bool changed=false;  //whether changed once already
         //mode change and swap
         if(length==cur_word.length()){
             if(is_change){
@@ -485,9 +321,10 @@ bool letterman::check_word(int index){
                     }
                 }
                 if(changed){
-                    dic[index].discovered=true;
-                    dic[index].diff=diff_oss.str();
-                    dic[index].prev=cur_index;
+                    cout<<"dicword: "<<dicword<<" curword: "<<cur_word<<endl;
+                    checking_word.discovered=true;
+                    checking_word.diff=diff_oss.str();
+                    checking_word.prev=cur_index;
                     searcher.push_back(index);
                     if(endword==dicword){
                         return true;
@@ -499,27 +336,27 @@ bool letterman::check_word(int index){
                 for(int i=0;i<(int)length;i++){
                     if(dicword[i]!=cur_word[i]){
                         if(changed){ //after the first difference, no difference allowed
-                            changed=false;
-                            break;
+                            return false;
                         }
-                        if(dicword[i+1]==cur_word[i]&&dicword[i]==cur_word[i+1]){
-                            changed=true;
+                        if((dicword[i+1]==cur_word[i])&&(dicword[i]==cur_word[i+1])){
                             diff_oss<<"s,"<<i;
                             i++;
                         }
+                        changed=true;
                     }
                 }
                 if(changed){
-                    dic[index].discovered=true;
-                    dic[index].diff=diff_oss.str();
-                    dic[index].prev=cur_index;
+                    cout<<"dicword: "<<dicword<<" curword: "<<cur_word<<endl;
+                    checking_word.discovered=true;
+                    checking_word.diff=diff_oss.str();
+                    checking_word.prev=cur_index;
                     searcher.push_back(index);
                     if(endword==dicword){
                         return true;
                     }
-                    return false;
                 }
             }
+            return false;
         }
         else{ //delete and insert 
             if(is_length){
@@ -544,9 +381,10 @@ bool letterman::check_word(int index){
                             }
                         }
                     }
-                    dic[index].discovered=true;
-                    dic[index].diff=diff_oss.str();
-                    dic[index].prev=cur_index;
+                    cout<<"dicword: "<<dicword<<" curword: "<<cur_word<<endl;
+                    checking_word.discovered=true;
+                    checking_word.diff=diff_oss.str();
+                    checking_word.prev=cur_index;
                     searcher.push_back(index);
                     if(endword==dicword){
                         return true;
@@ -573,9 +411,10 @@ bool letterman::check_word(int index){
                             }
                         }
                     }
-                    dic[index].discovered=true;
-                    dic[index].diff=diff_oss.str();
-                    dic[index].prev=cur_index;
+                    cout<<"dicword: "<<dicword<<" curword: "<<cur_word<<endl;
+                    checking_word.discovered=true;
+                    checking_word.diff=diff_oss.str();
+                    checking_word.prev=cur_index;
                     searcher.push_back(index);
                     if(endword==dicword){
                         return true;
@@ -591,6 +430,7 @@ bool letterman::check_word(int index){
 
 
 int letterman::update_searcher(){
+    printStack();
     for(int i=0;i<num_words;i++){
         if(check_word(i)){
             return 1;
