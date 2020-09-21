@@ -18,6 +18,12 @@ struct word{
     bool discovered=false;
 };
 
+struct diff_info{
+    bool changed=false;
+    char mode;
+    int pos;
+    char content;
+};
 
 class letterman{
     private:
@@ -36,6 +42,20 @@ class letterman{
         bool is_stack=false;   //use a stack otherwise use a queue
         bool is_wordformat=true; //output format by default word format
 
+        int word_type(string &line){  //return 0 for simple word, 1 for &; 2 for !, 3 for ?, 4 for []
+            char ith_char;
+            for(int i=0;i<(int)line.length();i++){
+                ith_char=line[i];
+                switch(ith_char){
+                    case '&': return 1;
+                    case '!': return 2;
+                    case '?': return 3;
+                    case '[': return 4;
+                }
+            }
+            return 0;
+        }
+
         //convert string to int
         int str2int(string &input){
             int res_num=0;
@@ -44,12 +64,15 @@ class letterman{
             return res_num;
         } 
 
-        bool get_simple_line(string line){
+        bool get_simple_line(string &line,int length){
             //if not comment
             if((line.length()>1&&(line[0]=='/'&&line[1]=='/'))){
                 return false;
             }
             else{
+                if((!is_length)&&((int)line.length()!=length)){
+                    return false;
+                }
                 word newword;
                 newword.discovered=false;
                 newword.name=line;
@@ -58,16 +81,27 @@ class letterman{
             return true;
         }
 
-        bool get_complex_line(string line){
+        bool get_complex_line(string &line,int length){
             //if not comment
             if((line.length()>1&&(line[0]=='/'&&line[1]=='/'))){
                 return false;
             }
             else{
-                //&
-                if(line[line.length()-1]=='&'){
+                int pos=word_type(line);
+                if((!is_length)&&(pos==0||pos==1||pos==2)){
+                    if(length!=(int)line.length()){
+                        return false;
+                    }
+                }
+                word newword;
+                newword.name=line;
+                if(pos==0){
+                    dic.push_back(newword);
+                    num_words++;
+                    return true;
+                }
+                if(pos==1){
                     line.erase(line.length()-1,1);  //delete &
-                    word newword;
                     newword.name=line;
                     dic.push_back(newword);
                     reverse(line.begin(),line.end()); //reverse word
@@ -76,11 +110,9 @@ class letterman{
                     num_words+=2;
                     return true;
                 }
-                //!
-                int pos=(int)line.find("!");
-                if(pos!=(int)line.npos){
+                if(pos==2){
+                    pos=(int)line.find("!");
                     line.erase(pos,1);  //erase !
-                    word newword;
                     newword.name=line;
                     dic.push_back(newword);
                     char swaper=line[pos-1];  //swap
@@ -91,25 +123,25 @@ class letterman{
                     num_words+=2;
                     return true;
                 }
-                //?
-                pos=(int)line.find("?");
-                if(pos!=(int)line.npos){
-                    word word_one,word_two;
-                    line[pos]=line[pos-1];
+                if(pos==3){
+                    word word_two;
+                    pos=(int)line.find("?");
+                    line[pos]=line[pos-1];            
                     word_two.name=line;
-                    word_one.name=line.erase(pos,1);
-                    dic.push_back(word_one);
+                    newword.name=line.erase(pos,1);
+                    dic.push_back(newword);
                     dic.push_back(word_two);
                     num_words+=2;
                     return true;
                 }
-                //[]
-                pos=(int)line.find("[");
-                int pos2=(int)line.find("]");
-                if(pos!=(int)line.npos&&pos2!=(int)line.npos){
-                    word newword;
-                    string initial_line=line;
+                if(pos==4){
+                    pos=(int)line.find("[");
+                    int pos2=(int)line.find("]");            
                     int num_words_thisline=pos2-pos-1;
+                    if((!is_length)&&((int)line.length()-num_words_thisline!=length)){
+                        return false;
+                    }
+                    string initial_line=line;
                     line.erase(pos,num_words_thisline+1);
                     string word_name=line;
                     for(int i=0;i<num_words_thisline;i++){
@@ -119,19 +151,13 @@ class letterman{
                         num_words++;
                     }
                 }
-            }
-            return true;
+            } 
+            return true;           
         }
 
         
 
     public:
-
-        void printDic(){
-            for(int i=0;i<num_words;i++){
-                cout<<dic[i].name<<endl;
-            }
-        }
         
         void getArg(int argc,char* argv[]); 
 
@@ -146,17 +172,18 @@ class letterman{
         int get_num_discovered();    //return the number of discovered words in dictionary
 
         //test functions
-        void printStack(){
-            string lll;
-            deque<int> newsea(searcher);
-            cout<<"Now searcher is: ";
-            while(!newsea.empty()){
-                lll=dic[newsea.back()].name;
-                cout<<lll<<" ";
-                newsea.pop_back();
-            }
-            cout<<endl;
-        }
+        // void printStack(){
+        //     string lll;
+        //     deque<int> newsea(searcher);
+        //     cout<<"Now searcher is: ";
+        //     while(!newsea.empty()){
+        //         lll=dic[newsea.back()].name;
+        //         cout<<lll<<" ";
+        //         newsea.pop_back();
+        //     }
+        //     cout<<endl;
+        // }
+
 };
 
 
@@ -164,15 +191,15 @@ void letterman::getArg(int argc,char* argv[]){
     int option_index = 0, option = 0;
     opterr = false;
     struct option longOpts[] = {
-        { "stack", no_argument, nullptr, 's' },
+        {"stack",no_argument,nullptr,'s' },
         {"queue",no_argument,nullptr,'q'},
         {"change",no_argument,nullptr,'c'},
-        {"swap",no_argument,nullptr,'s'},
+        {"swap",no_argument,nullptr,'p'},
         {"length",no_argument,nullptr,'l'},
         {"output",required_argument,nullptr,'o'},
         {"begin",required_argument,nullptr,'b'},
         {"end",required_argument,nullptr,'e'},
-        { "help", no_argument, nullptr, 'h' },
+        {"help", no_argument, nullptr,'h' },
         { nullptr, 0, nullptr, '\0' }
     };
     while ((option = getopt_long(argc, argv, "sqcplo:b:e:h", longOpts, &option_index)) != -1) {
@@ -239,7 +266,7 @@ void letterman::getArg(int argc,char* argv[]){
         cerr<<"letterman can do nothing!\n";
         exit(1);
     }
-    if(!(is_length)&&beginword.length()!=endword.length()){
+    if((!is_length)&&(beginword.length()!=endword.length())){
         cerr<<"letterman cannot help.\n";
         exit(1);
     }
@@ -261,7 +288,7 @@ void letterman::getDic(){
         num_words=num_lines;
         while(dic_size<num_lines){
             getline(cin,dic_line);
-            if(get_simple_line(dic_line)){
+            if(get_simple_line(dic_line,(int)beginword.length())){
                 dic_size++;
             }
         }
@@ -270,7 +297,7 @@ void letterman::getDic(){
         num_words=0;
         while(dic_size<num_lines){
             getline(cin,dic_line);
-            if(get_complex_line(dic_line)){
+            if(get_complex_line(dic_line,(int)beginword.length())){
                 dic_size++;
             }
         }
@@ -299,31 +326,34 @@ void letterman::getDic(){
 bool letterman::check_word(int index){
     if(dic[index].discovered){return false;}
     else{
-        ostringstream diff_oss;
         word &checking_word=dic[index];
         string dicword=checking_word.name;
         string cur_word=dic[cur_index].name;
-        cout<<"Begin:dicword: "<<dicword<<" curword: "<<cur_word<<endl;
-        string diff_str;     //difference with current word
+        int pos=0;
         size_t length=dicword.length();
         bool changed=false;  //whether changed once already
         //mode change and swap
         if(length==cur_word.length()){
             if(is_change){
                 for(int i=0;i<(int)length;i++){
-                    if(changed&&(dicword[i]!=cur_word[i])){
-                        changed=false;
-                        break;
-                    }
-                    if((!changed)&&(dicword[i]!=cur_word[i])){
-                        changed=true;
-                        diff_oss<<"c,"<<i<<","<<dicword[i];
+                    if(dicword[i]!=cur_word[i]){
+                        if(changed){
+                            changed=false;
+                            break;
+                        }
+                        else{
+                            changed=true;
+                            pos=i;
+                        }
                     }
                 }
                 if(changed){
-                    cout<<"dicword: "<<dicword<<" curword: "<<cur_word<<endl;
+                    if(!is_wordformat){
+                        ostringstream diff_oss;
+                        diff_oss<<"c,"<<pos<<","<<dicword[pos];
+                        checking_word.diff=diff_oss.str();
+                    }   
                     checking_word.discovered=true;
-                    checking_word.diff=diff_oss.str();
                     checking_word.prev=cur_index;
                     searcher.push_back(index);
                     if(endword==dicword){
@@ -339,16 +369,19 @@ bool letterman::check_word(int index){
                             return false;
                         }
                         if((dicword[i+1]==cur_word[i])&&(dicword[i]==cur_word[i+1])){
-                            diff_oss<<"s,"<<i;
+                            pos=i;
                             i++;
                         }
                         changed=true;
                     }
                 }
                 if(changed){
-                    cout<<"dicword: "<<dicword<<" curword: "<<cur_word<<endl;
+                    if(!is_wordformat){
+                        ostringstream diff_oss;
+                        diff_oss<<"s,"<<pos;
+                        checking_word.diff=diff_oss.str();
+                    }
                     checking_word.discovered=true;
-                    checking_word.diff=diff_oss.str();
                     checking_word.prev=cur_index;
                     searcher.push_back(index);
                     if(endword==dicword){
@@ -367,12 +400,12 @@ bool letterman::check_word(int index){
                         //last char is deleted
                         if(!changed){
                             if(i==(int)length+1){
-                                diff_oss<<"d,"<<i;
+                                pos=i;
                                 break;
                             }
                             if(dicword[i]!=cur_word[i]){
                                 changed=true;
-                                diff_oss<<"d,"<<i;
+                                pos=i;
                             }
                         }
                         else{
@@ -381,9 +414,12 @@ bool letterman::check_word(int index){
                             }
                         }
                     }
-                    cout<<"dicword: "<<dicword<<" curword: "<<cur_word<<endl;
+                    if(!is_wordformat){
+                        ostringstream diff_oss;
+                        diff_oss<<"d,"<<pos;
+                        checking_word.diff=diff_oss.str();
+                    }                    
                     checking_word.discovered=true;
-                    checking_word.diff=diff_oss.str();
                     checking_word.prev=cur_index;
                     searcher.push_back(index);
                     if(endword==dicword){
@@ -397,12 +433,12 @@ bool letterman::check_word(int index){
                     for(int i=0;i<=(int)length;i++){
                         if(!changed){
                             if(i==(int)length){
-                                diff_oss<<"i,"<<i<<","<<dicword[i];
+                                pos=i;
                                 break;
                             }
                             if(dicword[i]!=cur_word[i]){
                                 changed=true;
-                                diff_oss<<"i,"<<i<<","<<dicword[i];
+                                pos=i;
                             }
                         }
                         else{
@@ -411,10 +447,13 @@ bool letterman::check_word(int index){
                             }
                         }
                     }
-                    cout<<"dicword: "<<dicword<<" curword: "<<cur_word<<endl;
-                    checking_word.discovered=true;
-                    checking_word.diff=diff_oss.str();
+                    if(!is_wordformat){
+                        ostringstream diff_oss;
+                        diff_oss<<"i,"<<pos<<","<<dicword[pos];
+                        checking_word.diff=diff_oss.str();
+                    }
                     checking_word.prev=cur_index;
+                    checking_word.discovered=true;
                     searcher.push_back(index);
                     if(endword==dicword){
                         return true;
@@ -430,7 +469,6 @@ bool letterman::check_word(int index){
 
 
 int letterman::update_searcher(){
-    printStack();
     for(int i=0;i<num_words;i++){
         if(check_word(i)){
             return 1;
